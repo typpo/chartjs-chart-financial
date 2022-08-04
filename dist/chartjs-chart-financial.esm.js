@@ -328,7 +328,7 @@ FinancialController.overrides = {
 				sampleSize: 100
 			},
 			afterBuildTicks: scale => {
-				const DateTime = window && window.luxon && window.luxon.DateTime;
+				const DateTime = typeof window !== 'undefined' && window && window.luxon && window.luxon.DateTime;
 				if (!DateTime) {
 					return;
 				}
