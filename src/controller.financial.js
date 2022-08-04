@@ -1,7 +1,7 @@
 ﻿'use strict';
 
-import {BarController, defaults} from 'chart.js';
-import {clipArea, isNullOrUndef, unclipArea} from 'chart.js/helpers';
+import {BarController, defaults} from 'chart.js-v3';
+import {clipArea, isNullOrUndef, unclipArea} from 'chart.js-v3/helpers';
 
 /**
  * Computes the "optimal" sample size to maintain bars equally sized while preventing overlap.

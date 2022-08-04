@@ -1,6 +1,6 @@
 ﻿'use strict';
 
-import {Chart, Element} from 'chart.js';
+import {Chart, Element} from 'chart.js-v3';
 
 const globalOpts = Chart.defaults;
 

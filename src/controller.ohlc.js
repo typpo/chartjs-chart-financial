@@ -1,7 +1,7 @@
 ﻿'use strict';
 
-import {Chart} from 'chart.js';
-import {merge} from 'chart.js/helpers';
+import {Chart} from 'chart.js-v3';
+import {merge} from 'chart.js-v3/helpers';
 import {FinancialController} from './controller.financial';
 import {OhlcElement} from './element.ohlc';
 

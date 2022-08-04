@@ -8,11 +8,143 @@
  * Released under the MIT license
  * https://github.com/chartjs/chartjs-chart-financial/blob/master/LICENSE.md
  */
-(function (global, factory) {
-typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('chart.js-v3'), require('chart.js-v3/helpers')) :
-typeof define === 'function' && define.amd ? define(['chart.js-v3', 'chart.js-v3/helpers'], factory) :
-(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.chart_jsV3, global.helpers));
-})(this, (function (chart_jsV3, helpers) { 'use strict';
+import { Chart, Element, defaults, BarController } from 'chart.js-v3';
+import { merge, valueOrDefault, isNullOrUndef, clipArea, unclipArea } from 'chart.js-v3/helpers';
+
+const globalOpts$2 = Chart.defaults;
+
+globalOpts$2.elements.financial = {
+	color: {
+		up: 'rgba(80, 160, 115, 1)',
+		down: 'rgba(215, 85, 65, 1)',
+		unchanged: 'rgba(90, 90, 90, 1)',
+	}
+};
+
+/**
+ * Helper function to get the bounds of the bar regardless of the orientation
+ * @param {Rectangle} bar the bar
+ * @param {boolean} [useFinalPosition]
+ * @return {object} bounds of the bar
+ * @private
+ */
+function getBarBounds(bar, useFinalPosition) {
+	const {x, y, base, width, height} = bar.getProps(['x', 'low', 'high', 'width', 'height'], useFinalPosition);
+
+	let left, right, top, bottom, half;
+
+	if (bar.horizontal) {
+		half = height / 2;
+		left = Math.min(x, base);
+		right = Math.max(x, base);
+		top = y - half;
+		bottom = y + half;
+	} else {
+		half = width / 2;
+		left = x - half;
+		right = x + half;
+		top = Math.min(y, base); // use min because 0 pixel at top of screen
+		bottom = Math.max(y, base);
+	}
+
+	return {left, top, right, bottom};
+}
+
+function inRange(bar, x, y, useFinalPosition) {
+	const skipX = x === null;
+	const skipY = y === null;
+	const bounds = !bar || (skipX && skipY) ? false : getBarBounds(bar, useFinalPosition);
+
+	return bounds
+		&& (skipX || x >= bounds.left && x <= bounds.right)
+		&& (skipY || y >= bounds.top && y <= bounds.bottom);
+}
+
+class FinancialElement extends Element {
+
+	height() {
+		return this.base - this.y;
+	}
+
+	inRange(mouseX, mouseY, useFinalPosition) {
+		return inRange(this, mouseX, mouseY, useFinalPosition);
+	}
+
+	inXRange(mouseX, useFinalPosition) {
+		return inRange(this, mouseX, null, useFinalPosition);
+	}
+
+	inYRange(mouseY, useFinalPosition) {
+		return inRange(this, null, mouseY, useFinalPosition);
+	}
+
+	getRange(axis) {
+		return axis === 'x' ? this.width / 2 : this.height / 2;
+	}
+
+	getCenterPoint(useFinalPosition) {
+		const {x, low, high} = this.getProps(['x', 'low', 'high'], useFinalPosition);
+		return {
+			x,
+			y: (high + low) / 2
+		};
+	}
+
+	tooltipPosition(useFinalPosition) {
+		const {x, open, close} = this.getProps(['x', 'open', 'close'], useFinalPosition);
+		return {
+			x,
+			y: (open + close) / 2
+		};
+	}
+}
+
+const globalOpts$1 = Chart.defaults;
+
+class OhlcElement extends FinancialElement {
+	draw(ctx) {
+		const me = this;
+
+		const {x, open, high, low, close} = me;
+
+		const armLengthRatio = valueOrDefault(me.armLengthRatio, globalOpts$1.elements.ohlc.armLengthRatio);
+		let armLength = valueOrDefault(me.armLength, globalOpts$1.elements.ohlc.armLength);
+		if (armLength === null) {
+			// The width of an ohlc is affected by barPercentage and categoryPercentage
+			// This behavior is caused by extending controller.financial, which extends controller.bar
+			// barPercentage and categoryPercentage are now set to 1.0 (see controller.ohlc)
+			// and armLengthRatio is multipled by 0.5,
+			// so that when armLengthRatio=1.0, the arms from neighbour ohcl touch,
+			// and when armLengthRatio=0.0, ohcl are just vertical lines.
+			armLength = me.width * armLengthRatio * 0.5;
+		}
+
+		if (close < open) {
+			ctx.strokeStyle = valueOrDefault(me.color ? me.color.up : undefined, globalOpts$1.elements.ohlc.color.up);
+		} else if (close > open) {
+			ctx.strokeStyle = valueOrDefault(me.color ? me.color.down : undefined, globalOpts$1.elements.ohlc.color.down);
+		} else {
+			ctx.strokeStyle = valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts$1.elements.ohlc.color.unchanged);
+		}
+		ctx.lineWidth = valueOrDefault(me.lineWidth, globalOpts$1.elements.ohlc.lineWidth);
+
+		ctx.beginPath();
+		ctx.moveTo(x, high);
+		ctx.lineTo(x, low);
+		ctx.moveTo(x - armLength, open);
+		ctx.lineTo(x, open);
+		ctx.moveTo(x + armLength, close);
+		ctx.lineTo(x, close);
+		ctx.stroke();
+	}
+}
+
+OhlcElement.id = 'ohlc';
+OhlcElement.defaults = merge({}, [globalOpts$1.elements.financial, {
+	lineWidth: 2,
+	armLength: null,
+	armLengthRatio: 0.8,
+}]);
 
 /**
  * Computes the "optimal" sample size to maintain bars equally sized while preventing overlap.
@@ -38,7 +170,7 @@ function computeMinSampleSize(scale, pixels) {
 /**
  * This class is based off controller.bar.js from the upstream Chart.js library
  */
-class FinancialController extends chart_jsV3.BarController {
+class FinancialController extends BarController {
 
 	getLabelAndValue(index) {
 		const me = this;
@@ -146,11 +278,11 @@ class FinancialController extends chart_jsV3.BarController {
 		const me = this;
 		const chart = me.chart;
 		const rects = me._cachedMeta.data;
-		helpers.clipArea(chart.ctx, chart.chartArea);
+		clipArea(chart.ctx, chart.chartArea);
 		for (let i = 0; i < rects.length; ++i) {
 			rects[i].draw(me._ctx);
 		}
-		helpers.unclipArea(chart.ctx);
+		unclipArea(chart.ctx);
 	}
 
 }
@@ -237,8 +369,8 @@ FinancialController.overrides = {
 				label(ctx) {
 					const point = ctx.parsed;
 
-					if (!helpers.isNullOrUndef(point.y)) {
-						return chart_jsV3.defaults.plugins.tooltip.callbacks.label(ctx);
+					if (!isNullOrUndef(point.y)) {
+						return defaults.plugins.tooltip.callbacks.label(ctx);
 					}
 
 					const {o, h, l, c} = point;
@@ -250,95 +382,48 @@ FinancialController.overrides = {
 	}
 };
 
-const globalOpts$2 = chart_jsV3.Chart.defaults;
+class OhlcController extends FinancialController {
 
-globalOpts$2.elements.financial = {
-	color: {
-		up: 'rgba(80, 160, 115, 1)',
-		down: 'rgba(215, 85, 65, 1)',
-		unchanged: 'rgba(90, 90, 90, 1)',
-	}
-};
+	updateElements(elements, start, count, mode) {
+		const me = this;
+		const dataset = me.getDataset();
+		const ruler = me._ruler || me._getRuler();
+		const firstOpts = me.resolveDataElementOptions(start, mode);
+		const sharedOptions = me.getSharedOptions(firstOpts);
+		const includeOptions = me.includeOptions(mode, sharedOptions);
 
-/**
- * Helper function to get the bounds of the bar regardless of the orientation
- * @param {Rectangle} bar the bar
- * @param {boolean} [useFinalPosition]
- * @return {object} bounds of the bar
- * @private
- */
-function getBarBounds(bar, useFinalPosition) {
-	const {x, y, base, width, height} = bar.getProps(['x', 'low', 'high', 'width', 'height'], useFinalPosition);
+		for (let i = 0; i < count; i++) {
+			const options = sharedOptions || me.resolveDataElementOptions(i, mode);
 
-	let left, right, top, bottom, half;
+			const baseProperties = me.calculateElementProperties(i, ruler, mode === 'reset', options);
+			const properties = {
+				...baseProperties,
+				datasetLabel: dataset.label || '',
+				lineWidth: dataset.lineWidth,
+				armLength: dataset.armLength,
+				armLengthRatio: dataset.armLengthRatio,
+				color: dataset.color,
+			};
 
-	if (bar.horizontal) {
-		half = height / 2;
-		left = Math.min(x, base);
-		right = Math.max(x, base);
-		top = y - half;
-		bottom = y + half;
-	} else {
-		half = width / 2;
-		left = x - half;
-		right = x + half;
-		top = Math.min(y, base); // use min because 0 pixel at top of screen
-		bottom = Math.max(y, base);
+			if (includeOptions) {
+				properties.options = options;
+			}
+			me.updateElement(elements[i], i, properties, mode);
+		}
 	}
 
-	return {left, top, right, bottom};
 }
 
-function inRange(bar, x, y, useFinalPosition) {
-	const skipX = x === null;
-	const skipY = y === null;
-	const bounds = !bar || (skipX && skipY) ? false : getBarBounds(bar, useFinalPosition);
-
-	return bounds
-		&& (skipX || x >= bounds.left && x <= bounds.right)
-		&& (skipY || y >= bounds.top && y <= bounds.bottom);
-}
-
-class FinancialElement extends chart_jsV3.Element {
-
-	height() {
-		return this.base - this.y;
+OhlcController.id = 'ohlc';
+OhlcController.defaults = merge({
+	dataElementType: OhlcElement.id,
+	datasets: {
+		barPercentage: 1.0,
+		categoryPercentage: 1.0
 	}
+}, Chart.defaults.financial);
 
-	inRange(mouseX, mouseY, useFinalPosition) {
-		return inRange(this, mouseX, mouseY, useFinalPosition);
-	}
-
-	inXRange(mouseX, useFinalPosition) {
-		return inRange(this, mouseX, null, useFinalPosition);
-	}
-
-	inYRange(mouseY, useFinalPosition) {
-		return inRange(this, null, mouseY, useFinalPosition);
-	}
-
-	getRange(axis) {
-		return axis === 'x' ? this.width / 2 : this.height / 2;
-	}
-
-	getCenterPoint(useFinalPosition) {
-		const {x, low, high} = this.getProps(['x', 'low', 'high'], useFinalPosition);
-		return {
-			x,
-			y: (high + low) / 2
-		};
-	}
-
-	tooltipPosition(useFinalPosition) {
-		const {x, open, close} = this.getProps(['x', 'open', 'close'], useFinalPosition);
-		return {
-			x,
-			y: (open + close) / 2
-		};
-	}
-}
-
-const globalOpts$1 = chart_jsV3.Chart.defaults;
+const globalOpts = Chart.defaults;
 
 class CandlestickElement extends FinancialElement {
 	draw(ctx) {
@@ -357,18 +442,18 @@ class CandlestickElement extends FinancialElement {
 
 		let borderColor;
 		if (close < open) {
-			borderColor = helpers.valueOrDefault(borderColors ? borderColors.up : undefined, globalOpts$1.elements.candlestick.borderColor);
-			ctx.fillStyle = helpers.valueOrDefault(me.color ? me.color.up : undefined, globalOpts$1.elements.candlestick.color.up);
+			borderColor = valueOrDefault(borderColors ? borderColors.up : undefined, globalOpts.elements.candlestick.borderColor);
+			ctx.fillStyle = valueOrDefault(me.color ? me.color.up : undefined, globalOpts.elements.candlestick.color.up);
 		} else if (close > open) {
-			borderColor = helpers.valueOrDefault(borderColors ? borderColors.down : undefined, globalOpts$1.elements.candlestick.borderColor);
-			ctx.fillStyle = helpers.valueOrDefault(me.color ? me.color.down : undefined, globalOpts$1.elements.candlestick.color.down);
+			borderColor = valueOrDefault(borderColors ? borderColors.down : undefined, globalOpts.elements.candlestick.borderColor);
+			ctx.fillStyle = valueOrDefault(me.color ? me.color.down : undefined, globalOpts.elements.candlestick.color.down);
 		} else {
-			borderColor = helpers.valueOrDefault(borderColors ? borderColors.unchanged : undefined, globalOpts$1.elements.candlestick.borderColor);
-			ctx.fillStyle = helpers.valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts$1.elements.candlestick.color.unchanged);
+			borderColor = valueOrDefault(borderColors ? borderColors.unchanged : undefined, globalOpts.elements.candlestick.borderColor);
+			ctx.fillStyle = valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts.elements.candlestick.color.unchanged);
 		}
 
-		ctx.lineWidth = helpers.valueOrDefault(me.borderWidth, globalOpts$1.elements.candlestick.borderWidth);
-		ctx.strokeStyle = helpers.valueOrDefault(borderColor, globalOpts$1.elements.candlestick.borderColor);
+		ctx.lineWidth = valueOrDefault(me.borderWidth, globalOpts.elements.candlestick.borderWidth);
+		ctx.strokeStyle = valueOrDefault(borderColor, globalOpts.elements.candlestick.borderColor);
 
 		ctx.beginPath();
 		ctx.moveTo(x, high);
@@ -383,8 +468,8 @@ class CandlestickElement extends FinancialElement {
 }
 
 CandlestickElement.id = 'candlestick';
-CandlestickElement.defaults = helpers.merge({}, [globalOpts$1.elements.financial, {
-	borderColor: globalOpts$1.elements.financial.color.unchanged,
+CandlestickElement.defaults = merge({}, [globalOpts.elements.financial, {
+	borderColor: globalOpts.elements.financial.color.unchanged,
 	borderWidth: 1,
 }]);
 
@@ -425,98 +510,8 @@ class CandlestickController extends FinancialController {
 }
 
 CandlestickController.id = 'candlestick';
-CandlestickController.defaults = helpers.merge({
+CandlestickController.defaults = merge({
 	dataElementType: CandlestickElement.id
-}, chart_jsV3.Chart.defaults.financial);
+}, Chart.defaults.financial);
 
-const globalOpts = chart_jsV3.Chart.defaults;
-
-class OhlcElement extends FinancialElement {
-	draw(ctx) {
-		const me = this;
-
-		const {x, open, high, low, close} = me;
-
-		const armLengthRatio = helpers.valueOrDefault(me.armLengthRatio, globalOpts.elements.ohlc.armLengthRatio);
-		let armLength = helpers.valueOrDefault(me.armLength, globalOpts.elements.ohlc.armLength);
-		if (armLength === null) {
-			// The width of an ohlc is affected by barPercentage and categoryPercentage
-			// This behavior is caused by extending controller.financial, which extends controller.bar
-			// barPercentage and categoryPercentage are now set to 1.0 (see controller.ohlc)
-			// and armLengthRatio is multipled by 0.5,
-			// so that when armLengthRatio=1.0, the arms from neighbour ohcl touch,
-			// and when armLengthRatio=0.0, ohcl are just vertical lines.
-			armLength = me.width * armLengthRatio * 0.5;
-		}
-
-		if (close < open) {
-			ctx.strokeStyle = helpers.valueOrDefault(me.color ? me.color.up : undefined, globalOpts.elements.ohlc.color.up);
-		} else if (close > open) {
-			ctx.strokeStyle = helpers.valueOrDefault(me.color ? me.color.down : undefined, globalOpts.elements.ohlc.color.down);
-		} else {
-			ctx.strokeStyle = helpers.valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts.elements.ohlc.color.unchanged);
-		}
-		ctx.lineWidth = helpers.valueOrDefault(me.lineWidth, globalOpts.elements.ohlc.lineWidth);
-
-		ctx.beginPath();
-		ctx.moveTo(x, high);
-		ctx.lineTo(x, low);
-		ctx.moveTo(x - armLength, open);
-		ctx.lineTo(x, open);
-		ctx.moveTo(x + armLength, close);
-		ctx.lineTo(x, close);
-		ctx.stroke();
-	}
-}
-
-OhlcElement.id = 'ohlc';
-OhlcElement.defaults = helpers.merge({}, [globalOpts.elements.financial, {
-	lineWidth: 2,
-	armLength: null,
-	armLengthRatio: 0.8,
-}]);
-
-class OhlcController extends FinancialController {
-
-	updateElements(elements, start, count, mode) {
-		const me = this;
-		const dataset = me.getDataset();
-		const ruler = me._ruler || me._getRuler();
-		const firstOpts = me.resolveDataElementOptions(start, mode);
-		const sharedOptions = me.getSharedOptions(firstOpts);
-		const includeOptions = me.includeOptions(mode, sharedOptions);
-
-		for (let i = 0; i < count; i++) {
-			const options = sharedOptions || me.resolveDataElementOptions(i, mode);
-
-			const baseProperties = me.calculateElementProperties(i, ruler, mode === 'reset', options);
-			const properties = {
-				...baseProperties,
-				datasetLabel: dataset.label || '',
-				lineWidth: dataset.lineWidth,
-				armLength: dataset.armLength,
-				armLengthRatio: dataset.armLengthRatio,
-				color: dataset.color,
-			};
-
-			if (includeOptions) {
-				properties.options = options;
-			}
-			me.updateElement(elements[i], i, properties, mode);
-		}
-	}
-
-}
-
-OhlcController.id = 'ohlc';
-OhlcController.defaults = helpers.merge({
-	dataElementType: OhlcElement.id,
-	datasets: {
-		barPercentage: 1.0,
-		categoryPercentage: 1.0
-	}
-}, chart_jsV3.Chart.defaults.financial);
-
-chart_jsV3.Chart.register(CandlestickController, OhlcController, CandlestickElement, OhlcElement);
-
-}));
+export { CandlestickController, CandlestickElement, OhlcController, OhlcElement };

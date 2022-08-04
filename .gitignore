@@ -34,6 +34,3 @@ node_modules
 
 # IntelliJ
 .idea
-
-# Build files
-dist/
