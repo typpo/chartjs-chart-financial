@@ -1,7 +1,8 @@
 ﻿'use strict';
 
-import {Chart} from 'chart.js-v3';
-import {merge, valueOrDefault} from 'chart.js-v3/helpers';
+import ChartJs from 'chart.js-v3';
+const Chart = ChartJs.Chart;
+const {merge, valueOrDefault} = ChartJs.helpers;
 import {FinancialElement} from './element.financial';
 
 const globalOpts = Chart.defaults;

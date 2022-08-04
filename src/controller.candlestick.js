@@ -1,7 +1,8 @@
 ﻿'use strict';
 
-import {Chart} from 'chart.js-v3';
-import {merge} from 'chart.js-v3/helpers';
+import ChartJs from 'chart.js-v3';
+const Chart = ChartJs.Chart;
+const {merge} = ChartJs.helpers;
 import {FinancialController} from './controller.financial';
 import {CandlestickElement} from './element.candlestick';
 
