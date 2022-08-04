@@ -8,10 +8,9 @@
  * Released under the MIT license
  * https://github.com/chartjs/chartjs-chart-financial/blob/master/LICENSE.md
  */
-import { Chart, Element, defaults, BarController } from 'chart.js-v3';
-import { merge, valueOrDefault, isNullOrUndef, clipArea, unclipArea } from 'chart.js-v3/helpers';
+import ChartJs, { Chart as Chart$4, Element } from 'chart.js-v3';
 
-const globalOpts$2 = Chart.defaults;
+const globalOpts$2 = Chart$4.defaults;
 
 globalOpts$2.elements.financial = {
 	color: {
@@ -99,7 +98,10 @@ class FinancialElement extends Element {
 	}
 }
 
-const globalOpts$1 = Chart.defaults;
+const Chart$3 = ChartJs.Chart;
+const {merge: merge$3, valueOrDefault: valueOrDefault$1} = ChartJs.helpers;
+
+const globalOpts$1 = Chart$3.defaults;
 
 class OhlcElement extends FinancialElement {
 	draw(ctx) {
@@ -107,8 +109,8 @@ class OhlcElement extends FinancialElement {
 
 		const {x, open, high, low, close} = me;
 
-		const armLengthRatio = valueOrDefault(me.armLengthRatio, globalOpts$1.elements.ohlc.armLengthRatio);
-		let armLength = valueOrDefault(me.armLength, globalOpts$1.elements.ohlc.armLength);
+		const armLengthRatio = valueOrDefault$1(me.armLengthRatio, globalOpts$1.elements.ohlc.armLengthRatio);
+		let armLength = valueOrDefault$1(me.armLength, globalOpts$1.elements.ohlc.armLength);
 		if (armLength === null) {
 			// The width of an ohlc is affected by barPercentage and categoryPercentage
 			// This behavior is caused by extending controller.financial, which extends controller.bar
@@ -120,13 +122,13 @@ class OhlcElement extends FinancialElement {
 		}
 
 		if (close < open) {
-			ctx.strokeStyle = valueOrDefault(me.color ? me.color.up : undefined, globalOpts$1.elements.ohlc.color.up);
+			ctx.strokeStyle = valueOrDefault$1(me.color ? me.color.up : undefined, globalOpts$1.elements.ohlc.color.up);
 		} else if (close > open) {
-			ctx.strokeStyle = valueOrDefault(me.color ? me.color.down : undefined, globalOpts$1.elements.ohlc.color.down);
+			ctx.strokeStyle = valueOrDefault$1(me.color ? me.color.down : undefined, globalOpts$1.elements.ohlc.color.down);
 		} else {
-			ctx.strokeStyle = valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts$1.elements.ohlc.color.unchanged);
+			ctx.strokeStyle = valueOrDefault$1(me.color ? me.color.unchanged : undefined, globalOpts$1.elements.ohlc.color.unchanged);
 		}
-		ctx.lineWidth = valueOrDefault(me.lineWidth, globalOpts$1.elements.ohlc.lineWidth);
+		ctx.lineWidth = valueOrDefault$1(me.lineWidth, globalOpts$1.elements.ohlc.lineWidth);
 
 		ctx.beginPath();
 		ctx.moveTo(x, high);
@@ -140,11 +142,14 @@ class OhlcElement extends FinancialElement {
 }
 
 OhlcElement.id = 'ohlc';
-OhlcElement.defaults = merge({}, [globalOpts$1.elements.financial, {
+OhlcElement.defaults = merge$3({}, [globalOpts$1.elements.financial, {
 	lineWidth: 2,
 	armLength: null,
 	armLengthRatio: 0.8,
 }]);
+
+const {BarController, defaults} = ChartJs;
+const {clipArea, isNullOrUndef, unclipArea} = ChartJs.helpers;
 
 /**
  * Computes the "optimal" sample size to maintain bars equally sized while preventing overlap.
@@ -382,6 +387,9 @@ FinancialController.overrides = {
 	}
 };
 
+const Chart$2 = ChartJs.Chart;
+const {merge: merge$2} = ChartJs.helpers;
+
 class OhlcController extends FinancialController {
 
 	updateElements(elements, start, count, mode) {
@@ -415,15 +423,18 @@ class OhlcController extends FinancialController {
 }
 
 OhlcController.id = 'ohlc';
-OhlcController.defaults = merge({
+OhlcController.defaults = merge$2({
 	dataElementType: OhlcElement.id,
 	datasets: {
 		barPercentage: 1.0,
 		categoryPercentage: 1.0
 	}
-}, Chart.defaults.financial);
+}, Chart$2.defaults.financial);
 
-const globalOpts = Chart.defaults;
+const Chart$1 = ChartJs.Chart;
+const {merge: merge$1, valueOrDefault} = ChartJs.helpers;
+
+const globalOpts = Chart$1.defaults;
 
 class CandlestickElement extends FinancialElement {
 	draw(ctx) {
@@ -468,10 +479,13 @@ class CandlestickElement extends FinancialElement {
 }
 
 CandlestickElement.id = 'candlestick';
-CandlestickElement.defaults = merge({}, [globalOpts.elements.financial, {
+CandlestickElement.defaults = merge$1({}, [globalOpts.elements.financial, {
 	borderColor: globalOpts.elements.financial.color.unchanged,
 	borderWidth: 1,
 }]);
+
+const Chart = ChartJs.Chart;
+const {merge} = ChartJs.helpers;
 
 class CandlestickController extends FinancialController {
 

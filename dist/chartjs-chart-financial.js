@@ -9,10 +9,17 @@
  * https://github.com/chartjs/chartjs-chart-financial/blob/master/LICENSE.md
  */
 (function (global, factory) {
-typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('chart.js-v3'), require('chart.js-v3/helpers')) :
-typeof define === 'function' && define.amd ? define(['chart.js-v3', 'chart.js-v3/helpers'], factory) :
-(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.chart_jsV3, global.helpers));
-})(this, (function (chart_jsV3, helpers) { 'use strict';
+typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('chart.js-v3')) :
+typeof define === 'function' && define.amd ? define(['chart.js-v3'], factory) :
+(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.ChartJs));
+})(this, (function (ChartJs) { 'use strict';
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+var ChartJs__default = /*#__PURE__*/_interopDefaultLegacy(ChartJs);
+
+const {BarController, defaults} = ChartJs__default["default"];
+const {clipArea, isNullOrUndef, unclipArea} = ChartJs__default["default"].helpers;
 
 /**
  * Computes the "optimal" sample size to maintain bars equally sized while preventing overlap.
@@ -38,7 +45,7 @@ function computeMinSampleSize(scale, pixels) {
 /**
  * This class is based off controller.bar.js from the upstream Chart.js library
  */
-class FinancialController extends chart_jsV3.BarController {
+class FinancialController extends BarController {
 
 	getLabelAndValue(index) {
 		const me = this;
@@ -146,11 +153,11 @@ class FinancialController extends chart_jsV3.BarController {
 		const me = this;
 		const chart = me.chart;
 		const rects = me._cachedMeta.data;
-		helpers.clipArea(chart.ctx, chart.chartArea);
+		clipArea(chart.ctx, chart.chartArea);
 		for (let i = 0; i < rects.length; ++i) {
 			rects[i].draw(me._ctx);
 		}
-		helpers.unclipArea(chart.ctx);
+		unclipArea(chart.ctx);
 	}
 
 }
@@ -237,8 +244,8 @@ FinancialController.overrides = {
 				label(ctx) {
 					const point = ctx.parsed;
 
-					if (!helpers.isNullOrUndef(point.y)) {
-						return chart_jsV3.defaults.plugins.tooltip.callbacks.label(ctx);
+					if (!isNullOrUndef(point.y)) {
+						return defaults.plugins.tooltip.callbacks.label(ctx);
 					}
 
 					const {o, h, l, c} = point;
@@ -250,7 +257,7 @@ FinancialController.overrides = {
 	}
 };
 
-const globalOpts$2 = chart_jsV3.Chart.defaults;
+const globalOpts$2 = ChartJs.Chart.defaults;
 
 globalOpts$2.elements.financial = {
 	color: {
@@ -299,7 +306,7 @@ function inRange(bar, x, y, useFinalPosition) {
 		&& (skipY || y >= bounds.top && y <= bounds.bottom);
 }
 
-class FinancialElement extends chart_jsV3.Element {
+class FinancialElement extends ChartJs.Element {
 
 	height() {
 		return this.base - this.y;
@@ -338,7 +345,10 @@ class FinancialElement extends chart_jsV3.Element {
 	}
 }
 
-const globalOpts$1 = chart_jsV3.Chart.defaults;
+const Chart$3 = ChartJs__default["default"].Chart;
+const {merge: merge$3, valueOrDefault: valueOrDefault$1} = ChartJs__default["default"].helpers;
+
+const globalOpts$1 = Chart$3.defaults;
 
 class CandlestickElement extends FinancialElement {
 	draw(ctx) {
@@ -357,18 +367,18 @@ class CandlestickElement extends FinancialElement {
 
 		let borderColor;
 		if (close < open) {
-			borderColor = helpers.valueOrDefault(borderColors ? borderColors.up : undefined, globalOpts$1.elements.candlestick.borderColor);
-			ctx.fillStyle = helpers.valueOrDefault(me.color ? me.color.up : undefined, globalOpts$1.elements.candlestick.color.up);
+			borderColor = valueOrDefault$1(borderColors ? borderColors.up : undefined, globalOpts$1.elements.candlestick.borderColor);
+			ctx.fillStyle = valueOrDefault$1(me.color ? me.color.up : undefined, globalOpts$1.elements.candlestick.color.up);
 		} else if (close > open) {
-			borderColor = helpers.valueOrDefault(borderColors ? borderColors.down : undefined, globalOpts$1.elements.candlestick.borderColor);
-			ctx.fillStyle = helpers.valueOrDefault(me.color ? me.color.down : undefined, globalOpts$1.elements.candlestick.color.down);
+			borderColor = valueOrDefault$1(borderColors ? borderColors.down : undefined, globalOpts$1.elements.candlestick.borderColor);
+			ctx.fillStyle = valueOrDefault$1(me.color ? me.color.down : undefined, globalOpts$1.elements.candlestick.color.down);
 		} else {
-			borderColor = helpers.valueOrDefault(borderColors ? borderColors.unchanged : undefined, globalOpts$1.elements.candlestick.borderColor);
-			ctx.fillStyle = helpers.valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts$1.elements.candlestick.color.unchanged);
+			borderColor = valueOrDefault$1(borderColors ? borderColors.unchanged : undefined, globalOpts$1.elements.candlestick.borderColor);
+			ctx.fillStyle = valueOrDefault$1(me.color ? me.color.unchanged : undefined, globalOpts$1.elements.candlestick.color.unchanged);
 		}
 
-		ctx.lineWidth = helpers.valueOrDefault(me.borderWidth, globalOpts$1.elements.candlestick.borderWidth);
-		ctx.strokeStyle = helpers.valueOrDefault(borderColor, globalOpts$1.elements.candlestick.borderColor);
+		ctx.lineWidth = valueOrDefault$1(me.borderWidth, globalOpts$1.elements.candlestick.borderWidth);
+		ctx.strokeStyle = valueOrDefault$1(borderColor, globalOpts$1.elements.candlestick.borderColor);
 
 		ctx.beginPath();
 		ctx.moveTo(x, high);
@@ -383,10 +393,13 @@ class CandlestickElement extends FinancialElement {
 }
 
 CandlestickElement.id = 'candlestick';
-CandlestickElement.defaults = helpers.merge({}, [globalOpts$1.elements.financial, {
+CandlestickElement.defaults = merge$3({}, [globalOpts$1.elements.financial, {
 	borderColor: globalOpts$1.elements.financial.color.unchanged,
 	borderWidth: 1,
 }]);
+
+const Chart$2 = ChartJs__default["default"].Chart;
+const {merge: merge$2} = ChartJs__default["default"].helpers;
 
 class CandlestickController extends FinancialController {
 
@@ -425,11 +438,14 @@ class CandlestickController extends FinancialController {
 }
 
 CandlestickController.id = 'candlestick';
-CandlestickController.defaults = helpers.merge({
+CandlestickController.defaults = merge$2({
 	dataElementType: CandlestickElement.id
-}, chart_jsV3.Chart.defaults.financial);
+}, Chart$2.defaults.financial);
 
-const globalOpts = chart_jsV3.Chart.defaults;
+const Chart$1 = ChartJs__default["default"].Chart;
+const {merge: merge$1, valueOrDefault} = ChartJs__default["default"].helpers;
+
+const globalOpts = Chart$1.defaults;
 
 class OhlcElement extends FinancialElement {
 	draw(ctx) {
@@ -437,8 +453,8 @@ class OhlcElement extends FinancialElement {
 
 		const {x, open, high, low, close} = me;
 
-		const armLengthRatio = helpers.valueOrDefault(me.armLengthRatio, globalOpts.elements.ohlc.armLengthRatio);
-		let armLength = helpers.valueOrDefault(me.armLength, globalOpts.elements.ohlc.armLength);
+		const armLengthRatio = valueOrDefault(me.armLengthRatio, globalOpts.elements.ohlc.armLengthRatio);
+		let armLength = valueOrDefault(me.armLength, globalOpts.elements.ohlc.armLength);
 		if (armLength === null) {
 			// The width of an ohlc is affected by barPercentage and categoryPercentage
 			// This behavior is caused by extending controller.financial, which extends controller.bar
@@ -450,13 +466,13 @@ class OhlcElement extends FinancialElement {
 		}
 
 		if (close < open) {
-			ctx.strokeStyle = helpers.valueOrDefault(me.color ? me.color.up : undefined, globalOpts.elements.ohlc.color.up);
+			ctx.strokeStyle = valueOrDefault(me.color ? me.color.up : undefined, globalOpts.elements.ohlc.color.up);
 		} else if (close > open) {
-			ctx.strokeStyle = helpers.valueOrDefault(me.color ? me.color.down : undefined, globalOpts.elements.ohlc.color.down);
+			ctx.strokeStyle = valueOrDefault(me.color ? me.color.down : undefined, globalOpts.elements.ohlc.color.down);
 		} else {
-			ctx.strokeStyle = helpers.valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts.elements.ohlc.color.unchanged);
+			ctx.strokeStyle = valueOrDefault(me.color ? me.color.unchanged : undefined, globalOpts.elements.ohlc.color.unchanged);
 		}
-		ctx.lineWidth = helpers.valueOrDefault(me.lineWidth, globalOpts.elements.ohlc.lineWidth);
+		ctx.lineWidth = valueOrDefault(me.lineWidth, globalOpts.elements.ohlc.lineWidth);
 
 		ctx.beginPath();
 		ctx.moveTo(x, high);
@@ -470,11 +486,14 @@ class OhlcElement extends FinancialElement {
 }
 
 OhlcElement.id = 'ohlc';
-OhlcElement.defaults = helpers.merge({}, [globalOpts.elements.financial, {
+OhlcElement.defaults = merge$1({}, [globalOpts.elements.financial, {
 	lineWidth: 2,
 	armLength: null,
 	armLengthRatio: 0.8,
 }]);
+
+const Chart = ChartJs__default["default"].Chart;
+const {merge} = ChartJs__default["default"].helpers;
 
 class OhlcController extends FinancialController {
 
@@ -509,14 +528,14 @@ class OhlcController extends FinancialController {
 }
 
 OhlcController.id = 'ohlc';
-OhlcController.defaults = helpers.merge({
+OhlcController.defaults = merge({
 	dataElementType: OhlcElement.id,
 	datasets: {
 		barPercentage: 1.0,
 		categoryPercentage: 1.0
 	}
-}, chart_jsV3.Chart.defaults.financial);
+}, Chart.defaults.financial);
 
-chart_jsV3.Chart.register(CandlestickController, OhlcController, CandlestickElement, OhlcElement);
+ChartJs.Chart.register(CandlestickController, OhlcController, CandlestickElement, OhlcElement);
 
 }));
