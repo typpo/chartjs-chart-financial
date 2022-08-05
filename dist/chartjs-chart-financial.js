@@ -9,14 +9,15 @@
  * https://github.com/chartjs/chartjs-chart-financial/blob/master/LICENSE.md
  */
 (function (global, factory) {
-typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('chart.js-v3')) :
-typeof define === 'function' && define.amd ? define(['chart.js-v3'], factory) :
-(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.ChartJs));
-})(this, (function (ChartJs) { 'use strict';
+typeof exports === 'object' && typeof module !== 'undefined' ? factory(require('chart.js-v3'), require('luxon')) :
+typeof define === 'function' && define.amd ? define(['chart.js-v3', 'luxon'], factory) :
+(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.ChartJs, global.luxon));
+})(this, (function (ChartJs, luxon) { 'use strict';
 
 function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
 var ChartJs__default = /*#__PURE__*/_interopDefaultLegacy(ChartJs);
+var luxon__default = /*#__PURE__*/_interopDefaultLegacy(luxon);
 
 const {BarController, defaults} = ChartJs__default["default"];
 const {clipArea, isNullOrUndef, unclipArea} = ChartJs__default["default"].helpers;
@@ -198,6 +199,10 @@ FinancialController.overrides = {
 				sampleSize: 100
 			},
 			afterBuildTicks: scale => {
+				const DateTime = luxon__default["default"].DateTime;
+				if (!DateTime) {
+					return;
+				}
 				const majorUnit = scale._majorUnit;
 				const ticks = scale.ticks;
 				const firstTick = ticks[0];
@@ -205,22 +210,22 @@ FinancialController.overrides = {
 					return;
 				}
 
-				let val = new Date(firstTick.value);
-				if ((majorUnit === 'minute' && val.getSeconds() === 0)
-						|| (majorUnit === 'hour' && val.getMinutes() === 0)
-						|| (majorUnit === 'day' && val.getHours() === 9)
-						|| (majorUnit === 'month' && val.getDate() <= 3 && val.getDay() === 1)
-						|| (majorUnit === 'year' && val.getMonth() === 1)) {
+				let val = DateTime.fromMillis(firstTick.value);
+				if ((majorUnit === 'minute' && val.second === 0)
+						|| (majorUnit === 'hour' && val.minute === 0)
+						|| (majorUnit === 'day' && val.hour === 9)
+						|| (majorUnit === 'month' && val.day <= 3 && val.weekday === 1)
+						|| (majorUnit === 'year' && val.month === 1)) {
 					firstTick.major = true;
 				} else {
 					firstTick.major = false;
 				}
-				let lastMajor = majorUnit === 'minute' ? val.getMinutes() : majorUnit === 'hour' ? val.getHours() : majorUnit === 'day' ? val.getDate() : majorUnit === 'month' ? val.getMonth() : val.getFullYear();
+				let lastMajor = val.get(majorUnit);
 
 				for (let i = 1; i < ticks.length; i++) {
 					const tick = ticks[i];
-					val = new Date(tick.value);
-          const currMajor = majorUnit === 'minute' ? val.getMinutes() : majorUnit === 'hour' ? val.getHours() : majorUnit === 'day' ? val.getDate() : majorUnit === 'month' ? val.getMonth() : val.getFullYear();
+					val = DateTime.fromMillis(tick.value);
+					const currMajor = val.get(majorUnit);
 					tick.major = currMajor !== lastMajor;
 					lastMajor = currMajor;
 				}
