@@ -198,10 +198,6 @@ FinancialController.overrides = {
 				sampleSize: 100
 			},
 			afterBuildTicks: scale => {
-				const DateTime = typeof window !== 'undefined' && window && window.luxon && window.luxon.DateTime;
-				if (!DateTime) {
-					return;
-				}
 				const majorUnit = scale._majorUnit;
 				const ticks = scale.ticks;
 				const firstTick = ticks[0];
@@ -209,22 +205,22 @@ FinancialController.overrides = {
 					return;
 				}
 
-				let val = DateTime.fromMillis(firstTick.value);
-				if ((majorUnit === 'minute' && val.second === 0)
-						|| (majorUnit === 'hour' && val.minute === 0)
-						|| (majorUnit === 'day' && val.hour === 9)
-						|| (majorUnit === 'month' && val.day <= 3 && val.weekday === 1)
-						|| (majorUnit === 'year' && val.month === 1)) {
+				let val = new Date(firstTick.value);
+				if ((majorUnit === 'minute' && val.getSeconds() === 0)
+						|| (majorUnit === 'hour' && val.getMinutes() === 0)
+						|| (majorUnit === 'day' && val.getHours() === 9)
+						|| (majorUnit === 'month' && val.getDate() <= 3 && val.getDay() === 1)
+						|| (majorUnit === 'year' && val.getMonth() === 1)) {
 					firstTick.major = true;
 				} else {
 					firstTick.major = false;
 				}
-				let lastMajor = val.get(majorUnit);
+				let lastMajor = majorUnit === 'minute' ? val.getMinutes() : majorUnit === 'hour' ? val.getHours() : majorUnit === 'day' ? val.getDate() : majorUnit === 'month' ? val.getMonth() : val.getFullYear();
 
 				for (let i = 1; i < ticks.length; i++) {
 					const tick = ticks[i];
-					val = DateTime.fromMillis(tick.value);
-					const currMajor = val.get(majorUnit);
+					val = new Date(tick.value);
+          const currMajor = majorUnit === 'minute' ? val.getMinutes() : majorUnit === 'hour' ? val.getHours() : majorUnit === 'day' ? val.getDate() : majorUnit === 'month' ? val.getMonth() : val.getFullYear();
 					tick.major = currMajor !== lastMajor;
 					lastMajor = currMajor;
 				}
